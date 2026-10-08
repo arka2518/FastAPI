@@ -1,12 +1,54 @@
 from fastapi import FastAPI, Path, HTTPException, Query
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, computed_field
+from typing import Annotated, Literal, Optional
 import json
 
 app = FastAPI()
+
+class Patient(BaseModel):
+    id: Annotated[str, Field(..., description="ID of the patient", example="P001")]
+    name: Annotated[str, Field(..., min_length=3, max_length=50, description="Name of the patient")]
+    city: Annotated[str, Field(..., min_length=3, max_length=25, description="City of the patient")]
+    age: Annotated[int, Field(..., gt=0, lt=120, description="Age of the patient")]
+    gender: Annotated[Literal["Male", "Female", "Other"], Field(..., description="Gender of the patient")]
+    height: Annotated[float, Field(..., gt=0, description="Height of the patient in mtrs")]
+    weight: Annotated[float, Field(..., gt=0, description="Weight of the patient in kg")]
+
+    @computed_field
+    @property
+    def bmi(self) -> float:
+        bmi = round(self.weight / (self.height ** 2), 2)
+        return bmi
+
+    @computed_field
+    @property
+    def verdict(self) -> str:
+        if self.bmi < 18.5:
+            return "Underweight"
+        elif self.bmi < 25:
+            return "Normal weight"
+        elif self.bmi < 30:
+            return "Overweight"
+        else:
+            return "Obese"
+
+class PatientUpdate(BaseModel):
+    name: Annotated[Optional[str], Field(None, min_length=3, max_length=50, description="Name of the patient")]
+    city: Annotated[Optional[str], Field(None, min_length=3, max_length=25, description="City of the patient")]
+    age: Annotated[Optional[int], Field(None, gt=0, lt=120, description="Age of the patient")]
+    gender: Annotated[Optional[Literal["Male", "Female", "Other"]], Field(None, description="Gender of the patient")]
+    height: Annotated[Optional[float], Field(None, gt=0, description="Height of the patient in mtrs")]
+    weight: Annotated[Optional[float], Field(None, gt=0, description="Weight of the patient in kg")]
 
 def load_data():
     with open("patients.json", "r") as file:
         data = json.load(file)
         return data
+
+def save_data(data):
+    with open("patients.json", "w") as file:
+        json.dump(data, file, indent=4)
 
 @app.get("/")
 def hello():
@@ -73,3 +115,13 @@ def update_patient(patient_id: str, patient_update: PatientUpdate):
 
     save_data(data)
     return JSONResponse(status_code=200, content={"message": "Patient data updated successfully"})
+
+@app.delete("/delete/{patient_id}")
+def delete_patient(patient_id: str):
+    data = load_data()
+    if patient_id not in data:
+        raise HTTPException(status_code=404, detail="Patient not found")
+    del data[patient_id]
+    save_data(data)
+    return JSONResponse(status_code=200, content={"message": "Patient deleted successfully"})
+
