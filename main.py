@@ -41,3 +41,35 @@ def sort_patients(sort_by: str = Query(..., description="Sort on the basis of we
     sort_order = True if order == "desc" else False
     sorted_data = sorted(data.values(), key = lambda x: x.get(sort_by, 0), reverse = sort_order)
     return sorted_data
+
+@app.post("/create")
+def create_patient(patient: Patient):
+    data = load_data()
+    if patient.id in data:
+        raise HTTPException(status_code=400, detail="Patient with this ID already exists")
+    data[patient.id] = patient.model_dump(exclude=["id"])
+    
+    save_data(data)
+    return JSONResponse(status_code=201, content={"message": "Patient created successfully"})
+
+@app.put("/edit/{patient_id}")
+def update_patient(patient_id: str, patient_update: PatientUpdate):
+    data = load_data()
+    
+    if patient_id not in data:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    existing_patient_data = data[patient_id]
+    updated_patient_data = patient_update.model_dump(exclude_unset=True)
+
+    for key, value in updated_patient_data.items():
+        existing_patient_data[key] = value
+
+    existing_patient_data["id"] = patient_id
+    patient_pydantic = Patient(**existing_patient_data)
+    
+    existing_patient_data = patient_pydantic.model_dump(exclude="id")
+    data[patient_id] = existing_patient_data
+
+    save_data(data)
+    return JSONResponse(status_code=200, content={"message": "Patient data updated successfully"})
