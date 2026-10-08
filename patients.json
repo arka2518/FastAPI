@@ -48,5 +48,15 @@
         "weight": 75,
         "bmi": 31.22,
         "verdict": "Obese"
+    },
+    "P006": {
+        "name": "string",
+        "city": "string",
+        "age": 75,
+        "gender": "Male",
+        "height": 2.0,
+        "weight": 75.0,
+        "bmi": 18.75,
+        "verdict": "Normal weight"
     }
 }
